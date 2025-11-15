@@ -4,7 +4,9 @@ import { QueryFailedError } from 'typeorm';
 import { describe, expect, it } from 'vitest';
 import { createHarness } from './helpers';
 import { MemoryCacheStore } from '../adapters/cache/memoryCacheStore';
+import { httpLogger } from '../logger';
 import { errorHandler } from '../middleware/error';
+import { requestTimeout } from '../middleware/timeout';
 import { CacheService } from '../services/cacheService';
 import { RateLimiter } from '../services/rateLimiter';
 
@@ -74,6 +76,29 @@ describe('errorHandler', () => {
       error: 'InternalServerError',
       message: 'Something went wrong',
     });
+  });
+});
+
+describe('requestTimeout', () => {
+  it('answers 503 with Retry-After and the request id when a handler stalls', async () => {
+    const app = express()
+      .use(httpLogger)
+      .use(requestTimeout(20, 7))
+      .get('/slow', () => undefined);
+
+    const res = await request(app).get('/slow').set('x-request-id', 'slow-1').expect(503);
+    expect(res.headers['retry-after']).toBe('7');
+    expect(res.body).toMatchObject({ error: 'ServiceUnavailable', requestId: 'slow-1' });
+  });
+
+  it('leaves a response alone once the handler has answered', async () => {
+    const app = express()
+      .use(requestTimeout(20, 7))
+      .get('/fast', (_req, res) => {
+        res.json({ ok: true });
+      });
+
+    await request(app).get('/fast').expect(200, { ok: true });
   });
 });
 

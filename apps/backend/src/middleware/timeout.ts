@@ -1,4 +1,5 @@
 import { logger } from '../logger';
+import { requestId } from './requestId';
 import type { NextFunction, Request, Response } from 'express';
 
 /**
@@ -12,12 +13,13 @@ export function requestTimeout(ms: number, retryAfterSeconds: number) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const timer = setTimeout(() => {
       if (res.headersSent || res.writableEnded) return;
-      logger.warn({ requestId: req.id, path: req.path }, 'request timed out');
+      const id = requestId(req);
+      logger.warn({ requestId: id, path: req.path }, 'request timed out');
       res.setHeader('Retry-After', String(retryAfterSeconds));
       res.status(503).json({
         error: 'ServiceUnavailable',
         message: 'Request timed out',
-        requestId: req.id,
+        requestId: id,
       });
     }, ms);
 

@@ -17,33 +17,26 @@ export function rateLimit(limiter: RateLimiter, options: RateLimitOptions): Requ
       next();
       return;
     }
-    {
-      // `req.ip` already honours the configured trust-proxy hop count. Reading
-      // X-Forwarded-For directly would let any client pick its own bucket by
-      // sending a header.
-      const identity = req.ip ?? 'unknown';
-      const verdict = await limiter.hit(
-        options.bucket,
-        identity,
-        options.max,
-        options.windowSeconds,
-      );
+    // `req.ip` already honours the configured trust-proxy hop count. Reading
+    // X-Forwarded-For directly would let any client pick its own bucket by
+    // sending a header.
+    const identity = req.ip ?? 'unknown';
+    const verdict = await limiter.hit(options.bucket, identity, options.max, options.windowSeconds);
 
-      res.setHeader('RateLimit-Limit', String(verdict.limit));
-      res.setHeader('RateLimit-Remaining', String(verdict.remaining));
-      res.setHeader('RateLimit-Reset', String(verdict.resetSeconds));
+    res.setHeader('RateLimit-Limit', String(verdict.limit));
+    res.setHeader('RateLimit-Remaining', String(verdict.remaining));
+    res.setHeader('RateLimit-Reset', String(verdict.resetSeconds));
 
-      if (!verdict.allowed) {
-        res.setHeader('Retry-After', String(verdict.resetSeconds));
-        res.status(429).json({
-          error: 'TooManyRequests',
-          message: 'Rate limit exceeded',
-          requestId: requestId(req),
-        });
-        return;
-      }
-      next();
+    if (!verdict.allowed) {
+      res.setHeader('Retry-After', String(verdict.resetSeconds));
+      res.status(429).json({
+        error: 'TooManyRequests',
+        message: 'Rate limit exceeded',
+        requestId: requestId(req),
+      });
+      return;
     }
+    next();
   });
 }
 
