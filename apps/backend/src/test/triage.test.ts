@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { MemoryLeadRepository } from '../adapters/memory/memoryRepositories';
 import { LlmLeadTriage } from '../adapters/triage/llmLeadTriage';
 import { RuleLeadTriage } from '../adapters/triage/ruleLeadTriage';
+import { LeadService } from '../services/leadService';
+import type { LeadTriageProvider } from '../ports/leadTriage';
 
 const rules = new RuleLeadTriage();
 
@@ -138,5 +141,25 @@ describe('LlmLeadTriage', () => {
         );
       },
     );
+  });
+});
+
+describe('LeadService', () => {
+  it('stores which triage provider produced the verdict', async () => {
+    const repo = new MemoryLeadRepository();
+    const fellBack: LeadTriageProvider = {
+      name: 'llm',
+      triage: () =>
+        Promise.resolve({ intent: 'support', priority: 'high', source: 'rules-fallback' }),
+    };
+
+    const { lead } = await new LeadService(repo, fellBack).capture({
+      name: 'Ada',
+      email: 'Ada@Acme.com',
+      message: 'The lid on my bottle leaks.',
+    });
+
+    expect(lead.triageSource).toBe('rules-fallback');
+    expect(repo.rows[0]?.triageSource).toBe('rules-fallback');
   });
 });

@@ -1,7 +1,7 @@
 import type { Lead } from '../entities/Lead';
 
 export type NewLead = Pick<Lead, 'email' | 'name' | 'message'> &
-  Partial<Pick<Lead, 'utmSource' | 'intent' | 'priority'>>;
+  Partial<Pick<Lead, 'utmSource' | 'intent' | 'priority' | 'triageSource'>>;
 
 export interface LeadRepository {
   findByEmail(email: string): Promise<Lead | null>;

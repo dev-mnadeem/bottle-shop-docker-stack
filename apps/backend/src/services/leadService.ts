@@ -44,6 +44,7 @@ export class LeadService {
       utmSource: submission.utmSource ?? null,
       intent: verdict.intent,
       priority: verdict.priority,
+      triageSource: verdict.source,
     };
 
     return { lead: await this.repo.create(row), duplicate: false };

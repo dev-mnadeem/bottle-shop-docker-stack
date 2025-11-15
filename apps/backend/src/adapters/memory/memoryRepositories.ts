@@ -120,7 +120,7 @@ export class MemoryLeadRepository implements LeadRepository {
       utmSource: input.utmSource ?? null,
       intent: input.intent ?? 'general',
       priority: input.priority ?? 'normal',
-      triageSource: 'rules',
+      triageSource: input.triageSource ?? 'rules',
       createdAt: new Date(),
     };
     this.rows.push(lead);
