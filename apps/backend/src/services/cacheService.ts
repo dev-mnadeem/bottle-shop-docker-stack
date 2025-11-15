@@ -27,7 +27,7 @@ export class CacheService {
     tagSetKey?: string,
   ): Promise<CacheResult<T>> {
     const cached = await this.read<T>(key);
-    if (cached !== null) return { value: cached, hit: true };
+    if (cached) return { value: cached.value, hit: true };
 
     const lockKey = `${key}:lock`;
     if (await this.store.acquireLock(lockKey, CACHE_LOCK_TTL_MS)) {
@@ -41,7 +41,7 @@ export class CacheService {
     // Someone else is loading. Jitter avoids every waiter waking together.
     await sleep(50 + Math.floor(Math.random() * CACHE_LOCK_RETRY_MAX_MS));
     const second = await this.read<T>(key);
-    if (second !== null) return { value: second, hit: true };
+    if (second) return { value: second.value, hit: true };
 
     return { value: await this.fill(key, ttlSeconds, loader, tagSetKey), hit: false };
   }
@@ -58,15 +58,20 @@ export class CacheService {
     return value;
   }
 
-  private async read<T>(key: string): Promise<T | null> {
+  /**
+   * Wrapped so that a cached `null` (a remembered "not found") is a hit. Returning
+   * the bare value made a stored null indistinguishable from an absent key, so
+   * every request for an unknown slug went back to the database.
+   */
+  private async read<T>(key: string): Promise<{ value: T } | undefined> {
     const raw = await this.store.get(key);
-    if (raw === null) return null;
+    if (raw === null) return undefined;
     try {
-      return JSON.parse(raw) as T;
+      return { value: JSON.parse(raw) as T };
     } catch {
       // A corrupt entry is treated as a miss rather than a 500.
       await this.store.del([key]);
-      return null;
+      return undefined;
     }
   }
 

@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createHarness, sampleProducts, tokenFor } from './helpers';
 
 describe('GET /api/products', () => {
@@ -115,6 +115,36 @@ describe('GET /api/products/:slug', () => {
     const { app } = createHarness();
     const res = await request(app).get('/api/products/no-such-bottle').expect(404);
     expect(res.body.error).toBe('NotFound');
+  });
+
+  it('remembers an unknown slug instead of querying for it every time', async () => {
+    const harness = createHarness();
+    const lookup = vi.spyOn(harness.products, 'findBySlug');
+
+    await request(harness.app).get('/api/products/no-such-bottle').expect(404);
+    await request(harness.app).get('/api/products/no-such-bottle').expect(404);
+
+    expect(lookup).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves a product created after a 404 for its slug', async () => {
+    const harness = createHarness();
+    const token = await tokenFor(harness, 'admin@example.com', 'admin');
+
+    await request(harness.app).get('/api/products/late-arrival').expect(404);
+    await request(harness.app)
+      .post('/api/products')
+      .set('authorization', `Bearer ${token}`)
+      .send({
+        slug: 'late-arrival',
+        name: 'Late Arrival',
+        priceCents: 1500,
+        imageUrl: '/products/glass-500.svg',
+        shortDescription: 'Created after someone asked for it.',
+      })
+      .expect(201);
+
+    await request(harness.app).get('/api/products/late-arrival').expect(200);
   });
 
   it('rejects a slug that is not kebab-case', async () => {

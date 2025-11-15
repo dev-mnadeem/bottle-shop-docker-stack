@@ -86,6 +86,21 @@ describe('CacheService', () => {
     expect(await store.get('b')).toBeNull();
   });
 
+  it('serves a cached null as a hit rather than reloading it', async () => {
+    const cache = new CacheService(new MemoryCacheStore());
+    let calls = 0;
+    const loader = () => {
+      calls += 1;
+      return Promise.resolve(null);
+    };
+
+    await cache.withCache('absent', 60, loader);
+    const second = await cache.withCache('absent', 60, loader);
+
+    expect(second).toEqual({ value: null, hit: true });
+    expect(calls).toBe(1);
+  });
+
   it('treats an unparseable entry as a miss instead of throwing', async () => {
     const store = new MemoryCacheStore();
     await store.set('broken', '{not json', 60);
