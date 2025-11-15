@@ -36,9 +36,6 @@ pnpm-debug.log*
 # OS
 .DS_Store
 
-# Husky's generated shim directory
-.husky/_/
-
 # Local Python virtualenv left over from tooling; not part of the project
 project_venv/
 

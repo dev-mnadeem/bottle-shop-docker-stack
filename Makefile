@@ -3,6 +3,8 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 COMPOSE := docker compose
+# Fetched on demand: as a devDependency it pulled a Chromium download into every install.
+ARTILLERY_VERSION := 2.0.34
 
 .PHONY: help install dev api web test lint typecheck check up down logs ps migrate seed load-test clean
 
@@ -27,7 +29,7 @@ lint: ## Lint every workspace
 typecheck: ## Typecheck every workspace
 	pnpm -r typecheck
 
-check: lint typecheck test ## Everything CI runs
+check: lint typecheck test ## Lint, typecheck and test in one go
 
 migrate: ## Apply pending database migrations
 	pnpm --filter backend migration:run
@@ -49,8 +51,8 @@ ps: ## Show container status
 
 load-test: ## Run the Artillery scenario against a running stack
 	mkdir -p reports
-	pnpm exec artillery run --output reports/run.json tests/load.yml
-	pnpm exec artillery report --output reports/run.html reports/run.json
+	pnpm dlx artillery@$(ARTILLERY_VERSION) run --output reports/run.json tests/load.yml
+	pnpm dlx artillery@$(ARTILLERY_VERSION) report --output reports/run.html reports/run.json
 
 clean: ## Remove build output and reports
 	rm -rf reports apps/backend/dist apps/frontend/.next
