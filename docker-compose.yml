@@ -110,6 +110,13 @@ services:
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.nginx
+      # The image runs `nginx -t` at build time, and nginx resolves upstream
+      # hostnames while testing. None of the services exist during a build, so
+      # without these stand-in entries the check fails and `make up` never starts.
+      extra_hosts:
+        - "backend-1:127.0.0.1"
+        - "backend-2:127.0.0.1"
+        - "frontend:127.0.0.1"
     ports:
       - "${HTTP_PORT:-8080}:80"
     depends_on:
