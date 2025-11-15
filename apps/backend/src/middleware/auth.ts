@@ -1,4 +1,3 @@
-import { asyncHandler } from './asyncHandler';
 import { AuthError, ForbiddenError } from './error';
 import type { UserRole } from '../entities/User';
 import type { AuthService } from '../services/authService';
@@ -6,8 +5,9 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
 const BEARER = 'Bearer ';
 
+/** Async on purpose: Express 5 forwards a rejected handler promise to the error middleware. */
 export function requireAuth(auth: AuthService): RequestHandler {
-  return asyncHandler(async (req, _res, next) => {
+  return async (req, _res, next) => {
     const header = req.headers.authorization;
     if (!header?.startsWith(BEARER)) throw new AuthError('Missing bearer token');
 
@@ -16,7 +16,7 @@ export function requireAuth(auth: AuthService): RequestHandler {
 
     req.auth = claims;
     next();
-  });
+  };
 }
 
 /**

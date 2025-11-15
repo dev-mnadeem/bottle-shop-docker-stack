@@ -14,8 +14,8 @@ export function validate(schema: ZodTypeAny, part: RequestPart = 'body') {
       next(result.error);
       return;
     }
-    // Express 4 defines `query` as a getter on some versions, so assign via
-    // defineProperty rather than plain assignment.
+    // Express 5 defines `query` as a getter on the request prototype, so a plain
+    // assignment would throw; an own property shadows it instead.
     Object.defineProperty(req, part, { value: result.data, writable: true, configurable: true });
     next();
   };

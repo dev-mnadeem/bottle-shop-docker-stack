@@ -65,6 +65,13 @@ describe('errorHandler', () => {
     expect(res.body.error).toBe('Conflict');
   });
 
+  it('receives the rejection from an async middleware instead of hanging', async () => {
+    const harness = createHarness();
+    harness.container.limiter.hit = () => Promise.reject(new Error('redis went away'));
+    const res = await request(harness.app).get('/api/products').expect(500);
+    expect(res.body.error).toBe('InternalServerError');
+  });
+
   it('keeps other database failures as an opaque 500', async () => {
     const err = new QueryFailedError(
       'SELECT ...',

@@ -1,4 +1,3 @@
-import { asyncHandler } from './asyncHandler';
 import { requestId } from './requestId';
 import type { RateLimiter } from '../services/rateLimiter';
 import type { Request, RequestHandler } from 'express';
@@ -12,7 +11,7 @@ export interface RateLimitOptions {
 }
 
 export function rateLimit(limiter: RateLimiter, options: RateLimitOptions): RequestHandler {
-  return asyncHandler(async (req, res, next) => {
+  return async (req, res, next) => {
     if (options.skip?.(req)) {
       next();
       return;
@@ -37,7 +36,7 @@ export function rateLimit(limiter: RateLimiter, options: RateLimitOptions): Requ
       return;
     }
     next();
-  });
+  };
 }
 
 /**
