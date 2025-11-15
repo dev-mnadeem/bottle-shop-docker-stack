@@ -1,0 +1,41 @@
+{
+  "name": "eco-bottle",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.10"
+  },
+  "scripts": {
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter backend test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "artillery": "^2.0.26",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-import": "^2.32.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.6.2",
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.45.0"
+  },
+  "lint-staged": {
+    "apps/backend/**/*.ts": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "apps/frontend/**/*.{ts,tsx}": [
+      "prettier --write",
+      "pnpm --filter frontend exec eslint --fix"
+    ],
+    "*.{json,yml,yaml,mjs,md}": [
+      "prettier --write"
+    ]
+  }
+}

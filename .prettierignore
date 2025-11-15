@@ -1,0 +1,8 @@
+node_modules/
+.next/
+dist/
+coverage/
+reports/
+pnpm-lock.yaml
+apps/frontend/public/
+docs/screenshots/

@@ -1,0 +1,3 @@
+# husky v9 runs this file directly. Sourcing .husky/_/husky.sh is the v8 shape
+# and fails on v9, which meant this hook errored on every commit.
+pnpm lint-staged

@@ -1,0 +1,40 @@
+# One ignore file for the whole workspace. apps/frontend used to carry the
+# create-next-app default as well, and its `.env*` rule silently excluded the
+# frontend's own .env.example.
+
+# Dependencies
+node_modules/
+.pnp.*
+.yarn/
+
+# Build output
+.next/
+out/
+dist/
+build/
+coverage/
+next-env.d.ts
+*.tsbuildinfo
+
+# Load-test artefacts
+reports/
+
+# Environment — .env.example files are committed, real ones never are
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Keys and hosting metadata
+*.pem
+.vercel
+
+# OS
+.DS_Store
+
+# Husky's generated shim directory
+.husky/_/
