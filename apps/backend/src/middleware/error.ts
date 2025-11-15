@@ -1,3 +1,4 @@
+import { QueryFailedError } from 'typeorm';
 import { ZodError } from 'zod';
 import { logger } from '../logger';
 import { requestId } from './requestId';
@@ -44,6 +45,20 @@ export class TooManyRequestsError extends HttpError {
   }
 }
 
+/** Postgres SQLSTATE for a unique constraint violation. */
+const UNIQUE_VIOLATION = '23505';
+
+/**
+ * The services check uniqueness before writing, but two concurrent requests can
+ * both pass that check. The constraint then decides, and the loser should get
+ * the same 409 the check would have given it rather than a 500.
+ */
+function isUniqueViolation(err: unknown): boolean {
+  if (!(err instanceof QueryFailedError)) return false;
+  const { code } = err.driverError as { code?: unknown };
+  return code === UNIQUE_VIOLATION;
+}
+
 interface ErrorBody {
   error: string;
   message: string;
@@ -77,6 +92,15 @@ export function errorHandler(err: unknown, req: Request, res: Response, next: Ne
     res
       .status(err.status)
       .json({ error: err.code, message: err.message, requestId: id } satisfies ErrorBody);
+    return;
+  }
+
+  if (isUniqueViolation(err)) {
+    res.status(409).json({
+      error: 'Conflict',
+      message: 'That record already exists',
+      requestId: id,
+    } satisfies ErrorBody);
     return;
   }
 

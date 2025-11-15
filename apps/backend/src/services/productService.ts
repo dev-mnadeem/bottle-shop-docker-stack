@@ -4,6 +4,7 @@ import {
   PRODUCT_DETAIL_TTL_SECONDS,
   PRODUCT_LIST_TTL_SECONDS,
 } from '../config/constants';
+import { ConflictError } from '../middleware/error';
 import type { CacheService } from './cacheService';
 import type { Product } from '../entities/Product';
 import type { ProductPage, ProductQuery, ProductRepository } from '../ports/productRepository';
@@ -83,6 +84,7 @@ export class ProductService {
   }
 
   async create(input: ProductInput): Promise<Product> {
+    await this.assertSlugFree(input.slug);
     const created = await this.repo.create(input);
     await this.invalidate(created.slug);
     return created;
@@ -91,6 +93,9 @@ export class ProductService {
   async update(id: string, patch: Partial<ProductInput>): Promise<Product | null> {
     const existing = await this.repo.findById(id);
     if (!existing) return null;
+    if (patch.slug !== undefined && patch.slug !== existing.slug) {
+      await this.assertSlugFree(patch.slug);
+    }
     const updated = await this.repo.update(id, patch);
     if (!updated) return null;
     await this.invalidate(existing.slug, updated.slug);
@@ -103,6 +108,12 @@ export class ProductService {
     const removed = await this.repo.remove(id);
     if (removed) await this.invalidate(existing.slug);
     return removed;
+  }
+
+  private async assertSlugFree(slug: string): Promise<void> {
+    if (await this.repo.findBySlug(slug)) {
+      throw new ConflictError(`A product with slug "${slug}" already exists`);
+    }
   }
 
   /** Both the old and new slug are dropped so a rename cannot leave a stale detail page. */

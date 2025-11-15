@@ -211,6 +211,43 @@ describe('catalogue writes', () => {
     await request(harness.app).get('/api/products/renamed-bottle').expect(200);
   });
 
+  it('answers 409 when creating a product with a slug that is taken', async () => {
+    const harness = createHarness();
+    const token = await tokenFor(harness, 'admin@example.com', 'admin');
+    const res = await request(harness.app)
+      .post('/api/products')
+      .set('authorization', `Bearer ${token}`)
+      .send({ ...body, slug: 'bottle-2' })
+      .expect(409);
+    expect(res.body.error).toBe('Conflict');
+  });
+
+  it("answers 409 when renaming a product onto another product's slug", async () => {
+    const harness = createHarness();
+    const token = await tokenFor(harness, 'admin@example.com', 'admin');
+    const target = await harness.products.findBySlug('bottle-0');
+
+    await request(harness.app)
+      .put(`/api/products/${target!.id}`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ slug: 'bottle-1' })
+      .expect(409);
+    expect((await harness.products.findBySlug('bottle-0'))?.id).toBe(target!.id);
+  });
+
+  it("allows an update that keeps the product's own slug", async () => {
+    const harness = createHarness();
+    const token = await tokenFor(harness, 'admin@example.com', 'admin');
+    const target = await harness.products.findBySlug('bottle-0');
+
+    const res = await request(harness.app)
+      .put(`/api/products/${target!.id}`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ slug: 'bottle-0', priceCents: 999 })
+      .expect(200);
+    expect(res.body.priceCents).toBe(999);
+  });
+
   it('rejects a negative price', async () => {
     const harness = createHarness();
     const token = await tokenFor(harness, 'admin@example.com', 'admin');

@@ -1,7 +1,10 @@
+import express from 'express';
 import request from 'supertest';
+import { QueryFailedError } from 'typeorm';
 import { describe, expect, it } from 'vitest';
 import { createHarness } from './helpers';
 import { MemoryCacheStore } from '../adapters/cache/memoryCacheStore';
+import { errorHandler } from '../middleware/error';
 import { CacheService } from '../services/cacheService';
 import { RateLimiter } from '../services/rateLimiter';
 
@@ -41,6 +44,36 @@ describe('health and readiness', () => {
     const { app } = createHarness();
     const res = await request(app).get('/api/nope').expect(404);
     expect(res.body.error).toBe('NotFound');
+  });
+});
+
+describe('errorHandler', () => {
+  const failingWith = (err: unknown) =>
+    express()
+      .get('/', (_req, _res, next) => next(err))
+      .use(errorHandler);
+
+  it('turns a Postgres unique violation from a lost race into a 409', async () => {
+    const err = new QueryFailedError(
+      'INSERT ...',
+      [],
+      Object.assign(new Error('dup'), { code: '23505' }),
+    );
+    const res = await request(failingWith(err)).get('/').expect(409);
+    expect(res.body.error).toBe('Conflict');
+  });
+
+  it('keeps other database failures as an opaque 500', async () => {
+    const err = new QueryFailedError(
+      'SELECT ...',
+      [],
+      Object.assign(new Error('x'), { code: '57014' }),
+    );
+    const res = await request(failingWith(err)).get('/').expect(500);
+    expect(res.body).toMatchObject({
+      error: 'InternalServerError',
+      message: 'Something went wrong',
+    });
   });
 });
 
