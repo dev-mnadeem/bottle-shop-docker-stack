@@ -13,14 +13,22 @@ import type { Container } from '../container';
  * an unvalidated value yields NaN for "?page=abc", which TypeORM passes through to
  * OFFSET NaN and the request ends as a 500.
  */
-const listQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).max(10_000).default(1),
-  limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
-  q: z.string().trim().min(1).max(MAX_SEARCH_TERM_LENGTH).optional(),
-  minPriceCents: z.coerce.number().int().min(0).optional(),
-  maxPriceCents: z.coerce.number().int().min(0).optional(),
-  sort: z.enum(['newest', 'price_asc', 'price_desc', 'name_asc']).default('newest'),
-});
+const listQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).max(10_000).default(1),
+    limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+    q: z.string().trim().min(1).max(MAX_SEARCH_TERM_LENGTH).optional(),
+    minPriceCents: z.coerce.number().int().min(0).optional(),
+    maxPriceCents: z.coerce.number().int().min(0).optional(),
+    sort: z.enum(['newest', 'price_asc', 'price_desc', 'name_asc']).default('newest'),
+  })
+  // An inverted range can match nothing; saying so beats an empty 200 that looks
+  // like an out-of-stock catalogue.
+  .refine(
+    ({ minPriceCents, maxPriceCents }) =>
+      minPriceCents === undefined || maxPriceCents === undefined || minPriceCents <= maxPriceCents,
+    { message: 'minPriceCents must not exceed maxPriceCents', path: ['minPriceCents'] },
+  );
 
 const slugParamSchema = z.object({
   slug: z

@@ -62,6 +62,14 @@ describe('GET /api/products', () => {
     }
   });
 
+  it('rejects a price range whose minimum is above its maximum', async () => {
+    const { app } = createHarness();
+    const res = await request(app)
+      .get('/api/products?minPriceCents=2000&maxPriceCents=1000')
+      .expect(400);
+    expect(res.body.details.fieldErrors.minPriceCents).toBeDefined();
+  });
+
   it('sorts by price ascending and descending', async () => {
     const { app } = createHarness();
     const asc = await request(app).get('/api/products?sort=price_asc').expect(200);
