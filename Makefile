@@ -20,8 +20,8 @@ api: ## Run the backend in watch mode (needs Postgres and Redis)
 web: ## Run the Next.js dev server
 	pnpm --filter frontend dev
 
-test: ## Run the backend test suite
-	pnpm --filter backend test
+test: ## Run the backend and frontend test suites
+	pnpm -r test
 
 lint: ## Lint every workspace
 	pnpm -r lint

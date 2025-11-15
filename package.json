@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter backend test",
+    "test": "pnpm -r test",
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
