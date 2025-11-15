@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <div className="container flex min-h-[60vh] flex-col items-center justify-center py-20 text-center">
       <p className="font-mono text-sm text-muted">404</p>
-      <h2 className="mt-2 text-2xl font-bold tracking-tight">No page here</h2>
+      <h2 className="mt-2 text-3xl font-semibold tracking-tight">No page here</h2>
       <p className="mt-3 max-w-md text-muted">
         The link may be out of date. The whole catalogue is on the landing page.
       </p>

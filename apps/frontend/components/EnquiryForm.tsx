@@ -45,6 +45,12 @@ export function EnquiryForm() {
       toast.success('Thanks — we will be in touch.');
       reset();
     } catch (err) {
+      // 409 is a second submission for the same address racing the first one.
+      if (err instanceof ApiError && err.status === 409) {
+        toast.success('We already have an enquiry from this address.');
+        reset();
+        return;
+      }
       if (err instanceof ApiError && err.status === 429) {
         toast.error('Too many enquiries from this address. Try again in a minute.');
         return;
@@ -64,10 +70,14 @@ export function EnquiryForm() {
   });
 
   return (
-    <section id="enquiry" className="border-t border-line bg-white scroll-mt-20">
-      <div className="container grid gap-10 py-16 lg:grid-cols-[1fr_1.1fr]">
+    <section
+      id="enquiry"
+      aria-labelledby="enquiry-heading"
+      className="scroll-mt-20 border-t border-line bg-surface"
+    >
+      <div className="container grid gap-10 py-14 sm:py-16 lg:grid-cols-[1fr_1.1fr]">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-ink">
+          <h2 id="enquiry-heading" className="text-3xl font-semibold tracking-tight text-ink">
             Bulk, wholesale or something broken?
           </h2>
           <p className="mt-3 max-w-md leading-relaxed text-muted">
@@ -79,7 +89,7 @@ export function EnquiryForm() {
               role="status"
               className="mt-6 rounded-2xl border border-brand/25 bg-brand-tint p-5"
             >
-              <p className="font-medium text-brand-strong">
+              <p className="font-display text-lg font-semibold text-brand-strong">
                 {INTENT_COPY[receipt.intent] ?? INTENT_COPY.general}
               </p>
               <p className="mt-1 text-sm text-muted">
@@ -96,7 +106,7 @@ export function EnquiryForm() {
             </label>
             <Input id="name" placeholder="Jane Doe" autoComplete="name" {...field('name')} />
             {errors.name && (
-              <p id="name-error" className="mt-1.5 text-sm text-red-700">
+              <p id="name-error" className="mt-1.5 text-sm text-clay">
                 {errors.name.message}
               </p>
             )}
@@ -114,7 +124,7 @@ export function EnquiryForm() {
               {...field('email')}
             />
             {errors.email && (
-              <p id="email-error" className="mt-1.5 text-sm text-red-700">
+              <p id="email-error" className="mt-1.5 text-sm text-clay">
                 {errors.email.message}
               </p>
             )}
@@ -131,7 +141,7 @@ export function EnquiryForm() {
               {...field('message')}
             />
             {errors.message && (
-              <p id="message-error" className="mt-1.5 text-sm text-red-700">
+              <p id="message-error" className="mt-1.5 text-sm text-clay">
                 {errors.message.message}
               </p>
             )}

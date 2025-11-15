@@ -1,7 +1,7 @@
 import React from 'react';
 
 const BASE =
-  'w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink shadow-sm outline-none placeholder:text-muted/70 focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/20 aria-[invalid=true]:border-red-400';
+  'w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-base text-ink shadow-sm outline-none placeholder:text-muted/80 focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/25 aria-[invalid=true]:border-clay sm:text-sm';
 
 export const Input = React.forwardRef<
   HTMLInputElement,

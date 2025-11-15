@@ -9,14 +9,23 @@
  * `text-brand`, `border-brand` and the gradient stops.
  */
 @theme {
-  --color-ink: #10231c;
-  --color-muted: #4c6159;
-  --color-surface: #ffffff;
-  --color-canvas: #f6f8f7;
-  --color-line: #dbe4e0;
-  --color-brand: #0f6b4f;
-  --color-brand-strong: #0a5540;
-  --color-brand-tint: #e4f1eb;
+  --color-ink: #14251e;
+  --color-muted: #4a5d55;
+  --color-surface: #fffdf9;
+  --color-canvas: #f4f1ea;
+  --color-line: #ddd7ca;
+  --color-brand: #0f5f46;
+  --color-brand-strong: #0a4a36;
+  --color-brand-tint: #e3efe8;
+  /* Fired clay: price tags and the odd accent. 4.9:1 on the surface colour. */
+  --color-clay: #a64b26;
+  --color-clay-tint: #f6e6dc;
+}
+
+/* `inline` so the utilities resolve the next/font variables set on <html>. */
+@theme inline {
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
 }
 
 :root {
@@ -32,12 +41,52 @@ body {
   color: var(--color-ink);
 }
 
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 50;
+}
+
+/* In the base layer so a component's own focus treatment (inputs use a ring) wins. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 3px;
+  }
+}
+
 /* v4 ships `container` with no centring and no gutters. This is the site's. */
 .container {
   width: 100%;
   max-width: 72rem;
   margin-inline: auto;
-  padding-inline: 1.5rem;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding-inline: 1.5rem;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.5s ease-out both;
+}
+
+.rise-late {
+  animation: rise 0.5s 0.1s ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -48,6 +97,7 @@ body {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
   }
 }

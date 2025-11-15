@@ -15,7 +15,7 @@ export default function ErrorBoundary({
 
   return (
     <div className="container flex min-h-[60vh] flex-col items-center justify-center py-20 text-center">
-      <h2 className="text-2xl font-bold tracking-tight">This page did not load</h2>
+      <h2 className="text-3xl font-semibold tracking-tight">This page did not load</h2>
       <p className="mt-3 max-w-md text-muted">
         Something failed while rendering. The API may still be starting.
       </p>

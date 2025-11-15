@@ -7,19 +7,28 @@ import Link from 'next/link';
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-20 border-b border-line bg-white/85 backdrop-blur">
-        <div className="container flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight">
+      <a
+        href="#catalogue"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-white"
+      >
+        Skip to the catalogue
+      </a>
+      <header className="sticky top-0 z-20 border-b border-line bg-surface/90 backdrop-blur">
+        <div className="container flex h-16 items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2.5 rounded-full">
             <span
               aria-hidden="true"
-              className="grid h-8 w-8 place-items-center rounded-full bg-brand text-sm text-white"
+              className="grid h-8 w-8 place-items-center rounded-full bg-brand font-display text-sm font-semibold text-white"
             >
-              EB
+              e
             </span>
-            Eco Bottle
+            <span className="font-display text-lg font-semibold tracking-tight">Eco Bottle</span>
           </Link>
-          <nav className="flex items-center gap-6 text-sm text-muted">
-            <a href="#catalogue" className="hover:text-ink">
+          <nav aria-label="Main" className="flex items-center gap-2 text-sm sm:gap-5">
+            <a
+              href="#catalogue"
+              className="hidden rounded-full px-2 py-1 text-muted hover:text-ink sm:inline"
+            >
               Catalogue
             </a>
             <a
@@ -34,10 +43,10 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
 
       <main className="flex-1">{children}</main>
 
-      <footer className="border-t border-line bg-white">
+      <footer className="border-t border-line bg-surface">
         <div className="container flex flex-col gap-2 py-8 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
           <p>Eco Bottle — reusable drinkware, built to be refilled.</p>
-          <p>Sample catalogue — product artwork is bundled with the app.</p>
+          <p>Sample catalogue. Product artwork is bundled with the app.</p>
         </div>
       </footer>
     </div>

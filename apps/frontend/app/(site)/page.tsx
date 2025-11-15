@@ -2,7 +2,7 @@ import { Catalogue } from '../../components/Catalogue';
 import { EnquiryForm } from '../../components/EnquiryForm';
 import { Hero } from '../../components/Hero';
 import { apiFetch } from '../../lib/api';
-import { catalogueKey, EMPTY_PAGE, type ProductPage } from '../../lib/products';
+import { catalogueKey, type ProductPage } from '../../lib/products';
 
 /**
  * The landing page is rendered per request so the catalogue is never stale, and
@@ -11,15 +11,19 @@ import { catalogueKey, EMPTY_PAGE, type ProductPage } from '../../lib/products';
  */
 export const dynamic = 'force-dynamic';
 
-const INITIAL_KEY = catalogueKey({ page: 1, limit: 12, sort: 'newest' });
+const INITIAL_KEY = catalogueKey({ page: 1, sort: 'newest' });
 
-async function loadCatalogue(): Promise<ProductPage> {
+/**
+ * null when the API could not be reached. The page still renders its copy, and
+ * the catalogue fetches from the browser and shows its own loading and error
+ * states — handing down an empty page instead made a booting API look like an
+ * empty catalogue.
+ */
+async function loadCatalogue(): Promise<ProductPage | null> {
   try {
-    return await apiFetch<ProductPage>(INITIAL_KEY, { cache: 'no-store' });
+    return await apiFetch<ProductPage>(INITIAL_KEY, { cache: 'no-store', retries: 0 });
   } catch {
-    // A landing page that 500s because the API is booting is worse than one that
-    // renders its copy and lets the client retry the grid.
-    return EMPTY_PAGE;
+    return null;
   }
 }
 
@@ -28,7 +32,7 @@ export default async function LandingPage() {
 
   return (
     <>
-      <Hero productCount={initial.total} />
+      <Hero productCount={initial?.total ?? null} />
       <Catalogue initialKey={INITIAL_KEY} fallback={initial} />
       <EnquiryForm />
     </>

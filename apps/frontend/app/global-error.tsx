@@ -23,13 +23,13 @@ export default function GlobalError({
           placeItems: 'center',
           minHeight: '100vh',
           margin: 0,
-          background: '#f6f8f7',
-          color: '#10231c',
+          background: '#f4f1ea',
+          color: '#14251e',
         }}
       >
         <main style={{ textAlign: 'center', padding: '2rem' }}>
           <h1 style={{ fontSize: '1.5rem', margin: 0 }}>The application failed to start</h1>
-          <p style={{ color: '#4c6159' }}>Reload the page, or try again shortly.</p>
+          <p style={{ color: '#4a5d55' }}>Reload the page, or try again shortly.</p>
           <button
             onClick={reset}
             style={{
@@ -37,7 +37,7 @@ export default function GlobalError({
               padding: '0.75rem 1.5rem',
               borderRadius: '999px',
               border: 0,
-              background: '#0f6b4f',
+              background: '#0f5f46',
               color: 'white',
               cursor: 'pointer',
             }}

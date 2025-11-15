@@ -1,15 +1,17 @@
 import Image from 'next/image';
-import { formatPrice, type Product } from '../lib/products';
 import { resolveProductImageUrl } from '../lib/images';
+import { formatPrice, type Product } from '../lib/products';
 import { Badge, Card } from './ui/Card';
 
 export function ProductCard({ product, priority }: { product: Product; priority?: boolean }) {
   return (
-    <Card className="flex flex-col overflow-hidden">
+    <Card as="article" className="flex w-full flex-col overflow-hidden">
       <div className="relative aspect-[4/3] w-full bg-canvas">
         <Image
           src={resolveProductImageUrl(product.imageUrl)}
-          alt={product.name}
+          // The name is the heading right below; repeating it as alt text makes a
+          // screen reader announce every product twice.
+          alt=""
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover"
@@ -20,8 +22,9 @@ export function ProductCard({ product, priority }: { product: Product; priority?
       </div>
       <div className="flex flex-1 flex-col gap-2 p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="font-semibold leading-tight text-ink">{product.name}</h3>
-          <Badge aria-label={`Price ${formatPrice(product.priceCents)}`}>
+          <h3 className="text-lg leading-tight font-semibold text-ink">{product.name}</h3>
+          <Badge>
+            <span className="sr-only">Price </span>
             {formatPrice(product.priceCents)}
           </Badge>
         </div>
