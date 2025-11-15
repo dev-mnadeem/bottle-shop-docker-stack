@@ -1,0 +1,6 @@
+FROM nginx:1.27-alpine
+COPY infra/docker/nginx.conf /etc/nginx/nginx.conf
+# Fails the build rather than the boot if the config does not parse.
+RUN nginx -t
+HEALTHCHECK --interval=15s --timeout=3s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1/health || exit 1

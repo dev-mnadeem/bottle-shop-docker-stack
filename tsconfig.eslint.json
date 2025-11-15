@@ -1,0 +1,14 @@
+{
+  "//": "Default project for the ESLint project service. Covers files that no build tsconfig includes (config files outside rootDir). strict is on so the type-aware rules behave as they do everywhere else.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["apps/backend/vitest.config.ts"]
+}

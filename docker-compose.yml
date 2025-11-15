@@ -1,0 +1,140 @@
+# `version:` is obsolete in Compose v2 and only produces a warning, so it is gone.
+name: eco-bottle
+
+x-backend-env: &backend-env
+  NODE_ENV: production
+  DATABASE_URL: postgres://eco_user:${POSTGRES_PASSWORD:-eco_pass}@postgres:5432/eco_db
+  REDIS_URL: redis://redis:6379
+  # Overridable from a local .env. The backend refuses to boot in production
+  # with the development default, so this must be set for a real deployment.
+  JWT_SECRET: ${JWT_SECRET:-dev_super_secret_change_me}
+  FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8080}
+  PORT: 4000
+
+x-backend-build: &backend-build
+  context: .
+  dockerfile: infra/docker/Dockerfile.backend
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: eco_db
+      POSTGRES_USER: eco_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eco_pass}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eco_user -d eco_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Applies pending migrations, then exits. Everything that needs the schema
+  # waits on it completing successfully.
+  migrate:
+    build: *backend-build
+    environment: *backend-env
+    command: ["node", "node_modules/typeorm/cli.js", "migration:run", "-d", "dist/data-source.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  seed:
+    build: *backend-build
+    environment: *backend-env
+    command: ["node", "dist/seeds/seed.js"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  backend-1:
+    build: *backend-build
+    environment: *backend-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # A second replica so the Nginx upstream has something to balance across, and
+  # so the shared rate-limit counter and JWT deny list are actually exercised.
+  # No container_name on either: a fixed name makes `--scale` impossible.
+  backend-2:
+    build: *backend-build
+    environment: *backend-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.frontend
+      args:
+        # Same-origin: the browser reaches the API through Nginx, so no CORS
+        # preflight and no hard-coded host.
+        NEXT_PUBLIC_API_URL: /api
+    environment:
+      NODE_ENV: production
+      # SSR runs inside the network, where localhost is this container.
+      INTERNAL_API_URL: http://nginx:80/api
+      PORT: 3000
+    depends_on:
+      backend-1:
+        condition: service_healthy
+      backend-2:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.nginx
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      frontend:
+        condition: service_started
+      backend-1:
+        condition: service_healthy
+      backend-2:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Optional. `docker compose --profile observability up` to include it.
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: ["observability"]
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./infra/docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      - backend-1
+      - backend-2
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

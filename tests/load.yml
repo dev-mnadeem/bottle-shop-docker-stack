@@ -1,0 +1,53 @@
+# Read-path load profile for the catalogue.
+#
+# `target` points at the backend directly. Through Nginx the same scenario also
+# exercises the proxy and the round-robin across both replicas — set
+# `--target http://localhost:8080` to measure that instead.
+#
+# The arrival rates are deliberately below the API's own limiter
+# (GLOBAL_RATE_LIMIT_MAX requests per IP per minute, see
+# apps/backend/src/config/constants.ts). Artillery drives every virtual user from
+# one source address, so a rate above that budget measures the rate limiter
+# rather than the application and reports the 429s as failures.
+config:
+  target: "http://127.0.0.1:4000"
+  phases:
+    - name: warmup
+      duration: 10
+      arrivalRate: 2
+    - name: steady
+      duration: 30
+      arrivalRate: 8
+  defaults:
+    headers:
+      x-test-run: artillery
+  ensure:
+    # A failed threshold exits non-zero, so this can gate a pipeline.
+    thresholds:
+      - http.response_time.p95: 200
+    conditions:
+      - expression: http.codes.200 > 0
+
+scenarios:
+  - name: browse the catalogue
+    weight: 7
+    flow:
+      - get:
+          url: "/api/products?page=1&limit=12"
+          expect:
+            - statusCode: 200
+      - think: 0.2
+      - get:
+          url: "/api/products/eco-glass-bottle-500ml"
+          expect:
+            - statusCode: 200
+
+  - name: search and sort
+    weight: 3
+    flow:
+      # Filtered queries deliberately bypass the cache, so this leg measures the
+      # database path rather than a Redis read.
+      - get:
+          url: "/api/products?q=steel&sort=price_asc"
+          expect:
+            - statusCode: 200
