@@ -1,0 +1,449 @@
+openapi: 3.0.3
+info:
+  title: Eco Bottle API
+  description: |
+    Catalogue, lead capture and operational endpoints for the Eco Bottle storefront.
+
+    Catalogue reads are public. Catalogue writes and the lead inbox require a
+    bearer token whose `role` claim is `admin`.
+  version: 1.0.0
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:8080/api
+    description: Through Nginx in the Compose stack
+  - url: http://localhost:4000/api
+    description: Backend directly in local development
+tags:
+  - name: Products
+  - name: Leads
+  - name: Auth
+  - name: Operations
+
+paths:
+  /health:
+    get:
+      tags: [Operations]
+      summary: Liveness — the process is running
+      description: Checks no dependency. A failure here means restart the container.
+      servers:
+        - url: http://localhost:4000
+      responses:
+        "200":
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  uptimeSeconds: { type: integer, example: 42 }
+                  commitSha: { type: string, nullable: true }
+
+  /ready:
+    get:
+      tags: [Operations]
+      summary: Readiness — this replica can serve traffic
+      description: Pings Postgres and the cache store. A failure means take the replica out of rotation.
+      servers:
+        - url: http://localhost:4000
+      responses:
+        "200":
+          description: Every dependency answered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+        "503":
+          description: At least one dependency is unreachable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+
+  /metrics:
+    get:
+      tags: [Operations]
+      summary: Prometheus exposition
+      servers:
+        - url: http://localhost:4000
+      responses:
+        "200":
+          description: Metrics in text exposition format
+          content:
+            text/plain:
+              schema: { type: string }
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Create an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Credentials" }
+      responses:
+        "201":
+          description: Account created with role `user`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountSummary" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "409":
+          description: That email is already registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Exchange credentials for an access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Credentials" }
+      responses:
+        "200":
+          description: Signed access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  expiresIn: { type: string, example: 15m }
+        "401":
+          description: Invalid credentials. Identical for an unknown account and a wrong password.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the presented token
+      description: Records the token's `jti` on a deny list that expires with the token.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Token revoked }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Identify the caller
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Claims for the presented token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountSummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /products:
+    get:
+      tags: [Products]
+      summary: Search the catalogue
+      description: |
+        Responses carry an `ETag` and a `Server-Timing` header reporting
+        `cache;desc="HIT"` or `"MISS"`. Only the unfiltered first few pages are
+        cached — a request carrying `q` or a price bound always reads the database.
+      parameters:
+        - {
+            in: query,
+            name: page,
+            schema: { type: integer, minimum: 1, maximum: 10000, default: 1 },
+          }
+        - {
+            in: query,
+            name: limit,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 12 },
+          }
+        - {
+            in: query,
+            name: q,
+            description: Free text matched against name and description,
+            schema: { type: string, maxLength: 80 },
+          }
+        - { in: query, name: minPriceCents, schema: { type: integer, minimum: 0 } }
+        - { in: query, name: maxPriceCents, schema: { type: integer, minimum: 0 } }
+        - {
+            in: query,
+            name: sort,
+            schema:
+              { type: string, enum: [newest, price_asc, price_desc, name_asc], default: newest },
+          }
+      responses:
+        "200":
+          description: One page of products
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductPage" }
+        "304": { description: The client already holds this ETag }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    post:
+      tags: [Products]
+      summary: Create a product
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /products/{slug}:
+    get:
+      tags: [Products]
+      summary: Fetch one product by slug
+      parameters:
+        - {
+            in: path,
+            name: slug,
+            required: true,
+            schema: { type: string, pattern: "^[a-z0-9-]+$" },
+          }
+      responses:
+        "200":
+          description: The product
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+        "304": { description: The client already holds this ETag }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /products/{id}:
+    put:
+      tags: [Products]
+      summary: Update a product
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Products]
+      summary: Delete a product
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /leads:
+    post:
+      tags: [Leads]
+      summary: Capture an inbound lead
+      description: |
+        Idempotent on email — re-posting the same address returns 200 with the
+        original id and writes nothing. The response echoes the triage verdict
+        assigned at write time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LeadInput" }
+      responses:
+        "201":
+          description: New lead captured
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LeadReceipt" }
+        "200":
+          description: This email was already captured
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LeadReceipt" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    get:
+      tags: [Leads]
+      summary: List captured leads
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            in: query,
+            name: limit,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+      responses:
+        "200":
+          description: Newest leads first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Lead" }
+                  total: { type: integer }
+                  page: { type: integer }
+                  limit: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    ValidationError:
+      description: The request failed schema validation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing, malformed, expired or revoked token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Authenticated but the role claim is not sufficient
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: No such resource
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: Rate limit exceeded. Carries `Retry-After` and `RateLimit-*` headers.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string, example: ValidationError }
+        message: { type: string }
+        requestId: { type: string, description: Matches the x-request-id response header }
+        details: { type: object, additionalProperties: true }
+
+    Readiness:
+      type: object
+      properties:
+        status: { type: string, enum: [ready, degraded] }
+        database: { type: boolean }
+        cache: { type: boolean }
+
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 320 }
+        password: { type: string, minLength: 8, maxLength: 200 }
+
+    AccountSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        role: { type: string, enum: [admin, user] }
+
+    ProductInput:
+      type: object
+      required: [slug, name, priceCents, imageUrl, shortDescription]
+      properties:
+        slug: { type: string, pattern: "^[a-z0-9-]+$", maxLength: 255 }
+        name: { type: string, maxLength: 200 }
+        priceCents:
+          { type: integer, minimum: 0, description: Minor units. No float ever touches a price. }
+        imageUrl:
+          {
+            type: string,
+            maxLength: 2000,
+            description: A path under the frontend's public/ directory,
+            or an absolute https URL,
+          }
+        shortDescription: { type: string, maxLength: 400 }
+
+    Product:
+      allOf:
+        - $ref: "#/components/schemas/ProductInput"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+
+    ProductPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Product" }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+        pages: { type: integer }
+
+    LeadInput:
+      type: object
+      required: [name, email, message]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 320 }
+        message: { type: string, minLength: 1, maxLength: 2000 }
+        utmSource: { type: string, maxLength: 120 }
+
+    LeadReceipt:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        intent: { $ref: "#/components/schemas/LeadIntent" }
+        priority: { $ref: "#/components/schemas/LeadPriority" }
+
+    LeadIntent:
+      type: string
+      enum: [bulk_order, wholesale, support, partnership, general]
+
+    LeadPriority:
+      type: string
+      enum: [high, normal, low]
+
+    Lead:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        message: { type: string }
+        utmSource: { type: string, nullable: true }
+        intent: { $ref: "#/components/schemas/LeadIntent" }
+        priority: { $ref: "#/components/schemas/LeadPriority" }
+        triageSource: { type: string, enum: [rules, llm, rules-fallback] }
+        createdAt: { type: string, format: date-time }
