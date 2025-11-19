@@ -1,0 +1,53 @@
+@import 'tailwindcss';
+
+/*
+ * Tailwind v4 is configured in CSS. A tailwind.config.ts sitting next to this
+ * file is read by nothing — which is how the `container` utility ended up doing
+ * no centring and no gutters.
+ *
+ * Names declared under @theme become utilities: `--color-brand` gives `bg-brand`,
+ * `text-brand`, `border-brand` and the gradient stops.
+ */
+@theme {
+  --color-ink: #10231c;
+  --color-muted: #4c6159;
+  --color-surface: #ffffff;
+  --color-canvas: #f6f8f7;
+  --color-line: #dbe4e0;
+  --color-brand: #0f6b4f;
+  --color-brand-strong: #0a5540;
+  --color-brand-tint: #e4f1eb;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+/* v4 ships `container` with no centring and no gutters. This is the site's. */
+.container {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
