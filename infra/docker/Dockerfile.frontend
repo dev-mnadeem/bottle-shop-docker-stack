@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+
+# ---- builder ----------------------------------------------------------------
+FROM node:20-alpine AS builder
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/frontend/package.json apps/frontend/
+COPY apps/backend/package.json apps/backend/
+RUN pnpm install --filter frontend --frozen-lockfile
+COPY apps/frontend apps/frontend
+
+# NEXT_PUBLIC_* is inlined at build time, not read at runtime, so the browser's
+# API base has to be supplied here. It defaults to the same-origin path Nginx
+# serves, which is what the Compose stack uses.
+ARG NEXT_PUBLIC_API_URL=/api
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm --filter frontend build
+
+# ---- runner -----------------------------------------------------------------
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN apk add --no-cache tini
+
+# `output: standalone` traces only the files the server actually imports, so the
+# image carries neither pnpm nor the full workspace node_modules.
+COPY --from=builder --chown=node:node /app/apps/frontend/.next/standalone ./
+COPY --from=builder --chown=node:node /app/apps/frontend/.next/static ./apps/frontend/.next/static
+COPY --from=builder --chown=node:node /app/apps/frontend/public ./apps/frontend/public
+
+USER node
+EXPOSE 3000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "apps/frontend/server.js"]
