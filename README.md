@@ -346,3 +346,7 @@ starts, so no boot races the schema and no boot can drop it.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Author
+
+[**Muhammad Nadeem**](https://github.com/dev-mnadeem)
