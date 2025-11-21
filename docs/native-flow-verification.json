@@ -1,0 +1,8 @@
+{
+  "storage": "Disposable PostgreSQL16",
+  "enquiry": "Synthetic browser fixture; no outbound messaging",
+  "classification": "bulk_order",
+  "provider": "rules",
+  "database_rows": 1,
+  "redis": "Not configured: one-process memory fallback"
+}

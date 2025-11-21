@@ -3,7 +3,7 @@
 A reusable-drinkware storefront: a Next.js landing page over an Express catalogue
 API, with Postgres, Redis, two API replicas behind Nginx, and a lead inbox that
 classifies enquiries as they arrive.
-[![Node >=20.10](https://img.shields.io/badge/Node-%3E%3D20.10-brightgreen)](package.json)
+[![Node >=22.12](https://img.shields.io/badge/Node-%3E%3D22.12-brightgreen)](package.json)
 [![pnpm 9.12](https://img.shields.io/badge/pnpm-9.12.0-orange)](pnpm-workspace.yaml)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-blue)](apps/backend/tsconfig.json)
 [![61 tests](https://img.shields.io/badge/tests-61%20passing-brightgreen)](apps/backend/src/test)
@@ -36,6 +36,31 @@ and the cache, rate limiter and deny list fall back to in-process implementation
 with a warning at boot, which is only correct for
 [one replica](#where-redis-earns-its-keep). The whole stack in containers,
 Nginx included, is [one command](#the-container-stack).
+
+### Native PostgreSQL when Docker is unavailable
+
+Use Node 22 and a running PostgreSQL server (version 16 was exercised locally).
+Create an empty database owned by your local user and configure its URL before
+running the migration and seed:
+
+```bash
+export DATABASE_URL=postgresql://localhost/eco_bottle
+createdb eco_bottle
+export JWT_SECRET=replace-with-your-local-random-signing-key
+export FRONTEND_ORIGIN=http://localhost:3000
+pnpm --filter backend migration:run
+pnpm --filter backend seed
+pnpm --filter backend dev
+# In a second terminal:
+pnpm --filter frontend dev
+```
+
+No Redis is needed for this one-process demonstration. A native browser enquiry
+was persisted once in PostgreSQL and classified by the local rules provider;
+[verification details](docs/native-flow-verification.json) record that scope.
+[The receipt](docs/screenshots/lead-receipt.png) and
+[mobile view](docs/screenshots/storefront-mobile.png) were captured from the running
+services. The full multi-replica container topology was not exercised here.
 
 ## What the API exposes
 
